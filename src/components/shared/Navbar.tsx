@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { Trophy, Activity, MapPin, Users, UserCheck } from 'lucide-react';
+import { Trophy, Activity, MapPin, Users, UserCheck, Shield } from 'lucide-react';
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-150">
       <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-lg shadow-sm">
@@ -14,7 +14,7 @@ export function Header() {
           </span>
         </Link>
 
-        {/* 顶部简易导航 */}
+        {/* 顶部主导航 */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
           <Link href="/assessment/self" className="hover:text-emerald-600 transition flex items-center gap-1.5">
             <Activity className="w-4 h-4" /> 水平测评
@@ -28,14 +28,18 @@ export function Header() {
           <Link href="/coach" className="hover:text-emerald-600 transition flex items-center gap-1.5">
             <UserCheck className="w-4 h-4" /> 教练课程
           </Link>
+          <Link href="/my/credit" className="hover:text-emerald-600 transition flex items-center gap-1.5 text-emerald-800">
+            <Shield className="w-4 h-4 text-emerald-600" /> 信用分
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">
           <Link
-            href="/assessment/self"
-            className="px-3.5 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition"
+            href="/my/credit"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition border border-emerald-200"
           >
-            免费测等级
+            <Shield className="w-3.5 h-3.5 text-emerald-600" />
+            信用 95分
           </Link>
         </div>
       </div>
@@ -62,9 +66,9 @@ export function MobileNavBar() {
         <MapPin className="w-5 h-5" />
         <span>订场</span>
       </Link>
-      <Link href="/coach" className="flex flex-col items-center gap-0.5 text-xs text-gray-500 hover:text-emerald-600">
-        <UserCheck className="w-5 h-5" />
-        <span>教练</span>
+      <Link href="/my/credit" className="flex flex-col items-center gap-0.5 text-xs text-gray-500 hover:text-emerald-600">
+        <Shield className="w-5 h-5" />
+        <span>信用</span>
       </Link>
     </nav>
   );
