@@ -11,9 +11,9 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[]
 ): Promise<QueryResult<T>> {
-  const start = Date.now();
+  const start = performance.now();
   const res = await pool.query<T>(text, params);
-  const duration = Date.now() - start;
+  const duration = performance.now() - start;
   if (process.env.NODE_ENV === 'development') {
     console.log('[DB Query]', { text: text.slice(0, 100), duration, rows: res.rowCount });
   }
