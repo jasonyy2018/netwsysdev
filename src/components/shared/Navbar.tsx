@@ -36,7 +36,7 @@ export async function Header() {
           </Link>
 
           {/* 管理员专属后台入口 */}
-          {user.role === 'admin' && (
+          {user && user.role === 'admin' && (
             <Link
               href="/admin"
               className="text-purple-900 hover:text-purple-700 font-bold transition flex items-center gap-1 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200"
@@ -48,17 +48,28 @@ export async function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/my/profile"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-800 text-xs font-bold transition border border-gray-200"
-          >
-            <img
-              src={user.avatar_url}
-              alt={user.nickname}
-              className="w-5 h-5 rounded-full object-cover"
-            />
-            <span className="max-w-[100px] truncate">{user.nickname}</span>
-          </Link>
+          {user ? (
+            <Link
+              href="/my/profile"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-800 text-xs font-bold transition border border-gray-200"
+            >
+              <img
+                src={user.avatar_url}
+                alt={user.nickname}
+                className="w-5 h-5 rounded-full object-cover"
+              />
+              <span className="max-w-[100px] truncate">{user.nickname}</span>
+            </Link>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/login"
+                className="px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition"
+              >
+                登录 / 注册
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </header>

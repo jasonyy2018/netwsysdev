@@ -9,17 +9,21 @@ const SESSION_COOKIE_NAME = 'tennishub_session_user_id';
 const DEFAULT_USER_ID = '11111111-1111-1111-1111-111111111111';
 
 /**
- * 获取当前登录用户信息（基于 cookie，若无则使用默认演示账号）
+ * 获取当前登录用户信息（基于 cookie，未登录返回 null）
  */
-export async function getCurrentUser(): Promise<UserSession> {
+export async function getCurrentUser(): Promise<UserSession | null> {
   const cookieStore = await cookies();
-  const sessionUserId = cookieStore.get(SESSION_COOKIE_NAME)?.value || DEFAULT_USER_ID;
+  const sessionUserId = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+  if (!sessionUserId) {
+    return null;
+  }
 
   try {
     const res = await query(
       `SELECT id, nickname, avatar_url, level_num, credit_score, city, play_preference, 
               COALESCE(phone, '13800138000') as phone, 
-              COALESCE(role, 'admin') as role, 
+              COALESCE(role, 'user') as role, 
               created_at 
        FROM profiles WHERE id = $1`,
       [sessionUserId]
@@ -40,23 +44,42 @@ export async function getCurrentUser(): Promise<UserSession> {
         created_at: r.created_at,
       };
     }
+
+    // 若数据库刚重置但 cookie 存了旧默认值，兼容种子库第一位管理员
+    if (sessionUserId === DEFAULT_USER_ID) {
+      return {
+        id: DEFAULT_USER_ID,
+        phone: '13812345678',
+        nickname: '费德勒老球迷 (张明)',
+        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        level_num: 3.5,
+        credit_score: 95,
+        role: 'admin',
+        city: '上海',
+        play_preference: 'singles',
+        created_at: '2026-01-01T00:00:00Z',
+      };
+    }
   } catch (err) {
     console.error('getCurrentUser error:', err);
+    // 数据库未启动时且携带了有效 cookie，做优雅降级
+    if (sessionUserId === DEFAULT_USER_ID) {
+      return {
+        id: DEFAULT_USER_ID,
+        phone: '13812345678',
+        nickname: '费德勒老球迷 (张明)',
+        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        level_num: 3.5,
+        credit_score: 95,
+        role: 'admin',
+        city: '上海',
+        play_preference: 'singles',
+        created_at: '2026-01-01T00:00:00Z',
+      };
+    }
   }
 
-  // 兜底返回默认管理员兼老球迷账号
-  return {
-    id: DEFAULT_USER_ID,
-    phone: '13812345678',
-    nickname: '费德勒老球迷 (张明)',
-    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-    level_num: 3.5,
-    credit_score: 95,
-    role: 'admin',
-    city: '上海',
-    play_preference: 'singles',
-    created_at: '2026-01-01T00:00:00Z',
-  };
+  return null;
 }
 
 /**
@@ -125,6 +148,9 @@ export async function updateProfile(data: unknown) {
   try {
     const validated = UpdateProfileSchema.parse(data);
     const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: '未登录或登录已过期，请重新登录' };
+    }
 
     try {
       await query(
