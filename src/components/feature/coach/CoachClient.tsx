@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { CoachCard } from '@/lib/schemas/coach';
 import { createCoachOrder } from '@/app/(main)/coach/actions';
 import { Star, ShieldCheck, Clock, Award, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
@@ -56,15 +57,25 @@ export function CoachClient({ coaches }: CoachClientProps) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* 顶部标题 */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-          认证网球教练与课程预约
-          <Sparkles className="w-5 h-5 text-amber-500" />
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          平台实名与 PTR / ITF 资质严格审核，透明计价，5% 平台保障资金存管。
-        </p>
+      {/* 顶部标题与入驻按钮 */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            认证网球教练与课程预约
+            <Sparkles className="w-5 h-5 text-amber-500" />
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            平台实名与 PTR / ITF 资质严格审核，透明计价，5% 平台保障资金存管。
+          </p>
+        </div>
+
+        <Link
+          href="/coach/apply"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-900 hover:bg-purple-800 text-white text-xs font-bold shadow-xs transition shrink-0"
+        >
+          <Award className="w-4 h-4 text-amber-300" />
+          教练入驻申请
+        </Link>
       </div>
 
       {/* 教练卡片流 */}

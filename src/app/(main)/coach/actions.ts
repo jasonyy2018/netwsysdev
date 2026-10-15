@@ -115,3 +115,47 @@ export async function createCoachOrder(input: unknown) {
     };
   }
 }
+
+/**
+ * 3. 提交教练入驻申请
+ */
+export async function submitCoachApplication(data: unknown) {
+  try {
+    const { CoachApplySchema } = await import('@/lib/schemas/coach-apply');
+    const validated = CoachApplySchema.parse(data);
+    const priceCents = validated.price_yuan_per_hour * 100;
+
+    await query(
+      `INSERT INTO coach_profiles 
+        (user_id, coach_level, years_experience, price_cents_per_hour, specialties, verified, bio)
+       VALUES ($1, $2, $3, $4, $5, false, $6)
+       ON CONFLICT (user_id) 
+       DO UPDATE SET 
+         coach_level = $2,
+         years_experience = $3,
+         price_cents_per_hour = $4,
+         specialties = $5,
+         bio = $6,
+         verified = false`,
+      [
+        DEFAULT_USER_ID,
+        validated.coach_level,
+        validated.years_experience,
+        priceCents,
+        validated.specialties,
+        `【资质: ${validated.cert_name}】${validated.bio}`,
+      ]
+    );
+
+    revalidatePath('/coach');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error('submitCoachApplication error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '提交申请失败',
+    };
+  }
+}
+
