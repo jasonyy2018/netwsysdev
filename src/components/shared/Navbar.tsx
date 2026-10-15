@@ -1,10 +1,13 @@
 import Link from 'next/link';
-import { Trophy, Activity, MapPin, Users, UserCheck, Shield } from 'lucide-react';
+import { Trophy, Activity, MapPin, Users, UserCheck, Shield, User, LayoutDashboard } from 'lucide-react';
+import { getCurrentUser } from '@/app/(auth)/actions';
 
-export function Header() {
+export async function Header() {
+  const user = await getCurrentUser();
+
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-150">
-      <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-lg shadow-sm">
             🎾
@@ -28,18 +31,33 @@ export function Header() {
           <Link href="/coach" className="hover:text-emerald-600 transition flex items-center gap-1.5">
             <UserCheck className="w-4 h-4" /> 教练课程
           </Link>
-          <Link href="/my/credit" className="hover:text-emerald-600 transition flex items-center gap-1.5 text-emerald-800">
+          <Link href="/my/credit" className="hover:text-emerald-600 transition flex items-center gap-1.5">
             <Shield className="w-4 h-4 text-emerald-600" /> 信用分
           </Link>
+
+          {/* 管理员专属后台入口 */}
+          {user.role === 'admin' && (
+            <Link
+              href="/admin"
+              className="text-purple-900 hover:text-purple-700 font-bold transition flex items-center gap-1 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5 text-purple-700" />
+              运营后台
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-3">
           <Link
-            href="/my/credit"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition border border-emerald-200"
+            href="/my/profile"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-800 text-xs font-bold transition border border-gray-200"
           >
-            <Shield className="w-3.5 h-3.5 text-emerald-600" />
-            信用 95分
+            <img
+              src={user.avatar_url}
+              alt={user.nickname}
+              className="w-5 h-5 rounded-full object-cover"
+            />
+            <span className="max-w-[100px] truncate">{user.nickname}</span>
           </Link>
         </div>
       </div>
@@ -66,9 +84,9 @@ export function MobileNavBar() {
         <MapPin className="w-5 h-5" />
         <span>订场</span>
       </Link>
-      <Link href="/my/credit" className="flex flex-col items-center gap-0.5 text-xs text-gray-500 hover:text-emerald-600">
-        <Shield className="w-5 h-5" />
-        <span>信用</span>
+      <Link href="/my/profile" className="flex flex-col items-center gap-0.5 text-xs text-gray-500 hover:text-emerald-600">
+        <User className="w-5 h-5" />
+        <span>我的</span>
       </Link>
     </nav>
   );
