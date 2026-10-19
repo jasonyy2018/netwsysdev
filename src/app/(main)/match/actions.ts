@@ -11,6 +11,15 @@ const DEFAULT_USER_ID = '11111111-1111-1111-1111-111111111111';
  * 1. 发起约球需求
  */
 export async function createMatchRequest(data: unknown) {
+  const { getCurrentUser } = await import('@/app/(auth)/actions');
+  const user = await getCurrentUser();
+  if (!user) {
+    return {
+      success: false,
+      error: '请先登录后再发起约球',
+    };
+  }
+
   try {
     const validated = CreateMatchSchema.parse(data);
 
@@ -21,7 +30,7 @@ export async function createMatchRequest(data: unknown) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'open')
        RETURNING id`,
       [
-        DEFAULT_USER_ID,
+        user.id,
         validated.title,
         validated.venue_id ? validated.venue_id : null,
         validated.court_name,
@@ -43,7 +52,7 @@ export async function createMatchRequest(data: unknown) {
       `INSERT INTO match_participants (match_request_id, user_id, status)
        VALUES ($1, $2, 'confirmed')
        ON CONFLICT (match_request_id, user_id) DO NOTHING`,
-      [matchId, DEFAULT_USER_ID]
+      [matchId, user.id]
     );
 
     revalidatePath('/match');
@@ -157,13 +166,22 @@ export async function getMatchRequests(filters?: {
  * 3. 报名加入约球
  */
 export async function joinMatchRequest(matchId: string) {
+  const { getCurrentUser } = await import('@/app/(auth)/actions');
+  const user = await getCurrentUser();
+  if (!user) {
+    return {
+      success: false,
+      error: '请先登录后再报名约球',
+    };
+  }
+
   try {
     await query(
       `INSERT INTO match_participants (match_request_id, user_id, status)
        VALUES ($1, $2, 'accepted')
        ON CONFLICT (match_request_id, user_id) 
        DO UPDATE SET status = 'accepted', joined_at = NOW()`,
-      [matchId, DEFAULT_USER_ID]
+      [matchId, user.id]
     );
 
     // 检查人数是否已满，若满则转 matched 状态

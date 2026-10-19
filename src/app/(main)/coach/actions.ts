@@ -76,6 +76,15 @@ export async function getCoaches(): Promise<CoachCard[]> {
  * 2. 预约教练课程 (含 5% 平台抽成与时段冲突检测)
  */
 export async function createCoachOrder(input: unknown) {
+  const { getCurrentUser } = await import('@/app/(auth)/actions');
+  const user = await getCurrentUser();
+  if (!user) {
+    return {
+      success: false,
+      error: '请先登录后再预约教练课程',
+    };
+  }
+
   try {
     const validated = CoachOrderSchema.parse(input);
     const amountCents = validated.hours * validated.price_cents_per_hour;
@@ -88,7 +97,7 @@ export async function createCoachOrder(input: unknown) {
           (student_id, coach_id, start_time, hours, amount_cents, platform_fee_cents, status)
          VALUES ($1, $2, $3, $4, $5, $6, 'confirmed')`,
         [
-          DEFAULT_USER_ID,
+          user.id,
           validated.coach_id,
           new Date(validated.start_time).toISOString(),
           validated.hours,
@@ -120,6 +129,15 @@ export async function createCoachOrder(input: unknown) {
  * 3. 提交教练入驻申请
  */
 export async function submitCoachApplication(data: unknown) {
+  const { getCurrentUser } = await import('@/app/(auth)/actions');
+  const user = await getCurrentUser();
+  if (!user) {
+    return {
+      success: false,
+      error: '请先登录后再提交教练入驻申请',
+    };
+  }
+
   try {
     const { CoachApplySchema } = await import('@/lib/schemas/coach-apply');
     const validated = CoachApplySchema.parse(data);
@@ -138,7 +156,7 @@ export async function submitCoachApplication(data: unknown) {
          bio = $6,
          verified = false`,
       [
-        DEFAULT_USER_ID,
+        user.id,
         validated.coach_level,
         validated.years_experience,
         priceCents,

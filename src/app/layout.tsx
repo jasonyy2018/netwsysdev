@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Header, MobileNavBar } from "@/components/shared/Navbar";
+import { Navbar } from "@/components/shared/Navbar";
 
 export const metadata: Metadata = {
   title: "TennisHub · 网球运动生态平台",
@@ -15,9 +15,8 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="antialiased min-h-screen bg-slate-50/50 flex flex-col pb-16 md:pb-0 font-sans">
-        <Header />
+        <Navbar />
         <main className="flex-1">{children}</main>
-        <MobileNavBar />
       </body>
     </html>
   );

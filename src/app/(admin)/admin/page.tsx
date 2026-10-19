@@ -11,7 +11,7 @@ export default async function AdminDashboardPage() {
     redirect('/login');
   }
 
-  const { stats, users, coaches, orders } = await getAdminDashboardData();
+  const { stats, users, coaches, orders, systemConfig } = await getAdminDashboardData();
 
   return (
     <AdminDashboardClient
@@ -19,6 +19,7 @@ export default async function AdminDashboardPage() {
       initialUsers={users}
       initialCoaches={coaches}
       orders={orders}
+      initialConfig={systemConfig}
     />
   );
 }

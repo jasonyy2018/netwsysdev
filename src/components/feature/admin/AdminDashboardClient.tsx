@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AdminStats, AdminUserItem, AdminCoachAuditItem, AdminOrderItem, toggleCoachVerification } from '@/app/(admin)/admin/actions';
-import { Users, UserCheck, Calendar, DollarSign, ShieldCheck, CheckCircle2, XCircle, Search, Sparkles, Filter, ChevronRight } from 'lucide-react';
+import { AdminStats, AdminUserItem, AdminCoachAuditItem, AdminOrderItem, toggleCoachVerification, updateSmsAuthConfigAction } from '@/app/(admin)/admin/actions';
+import { SystemAuthConfig } from '@/lib/schemas/auth';
+import { Users, UserCheck, Calendar, DollarSign, ShieldCheck, CheckCircle2, XCircle, Search, Sparkles, Filter, ChevronRight, Settings, Smartphone, Key } from 'lucide-react';
 import Link from 'next/link';
 
 interface AdminDashboardClientProps {
@@ -10,6 +11,7 @@ interface AdminDashboardClientProps {
   initialUsers: AdminUserItem[];
   initialCoaches: AdminCoachAuditItem[];
   orders: AdminOrderItem[];
+  initialConfig: SystemAuthConfig;
 }
 
 export function AdminDashboardClient({
@@ -17,10 +19,12 @@ export function AdminDashboardClient({
   initialUsers,
   initialCoaches,
   orders,
+  initialConfig,
 }: AdminDashboardClientProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'coaches' | 'orders'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'coaches' | 'orders' | 'settings'>('overview');
   const [coaches, setCoaches] = useState<AdminCoachAuditItem[]>(initialCoaches);
   const [users] = useState<AdminUserItem[]>(initialUsers);
+  const [config, setConfig] = useState<SystemAuthConfig>(initialConfig);
   const [searchUser, setSearchUser] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
 
@@ -129,6 +133,7 @@ export function AdminDashboardClient({
           { key: 'users', label: '用户管理与信用' },
           { key: 'coaches', label: '教练入驻资质审核' },
           { key: 'orders', label: '订场订单明细' },
+          { key: 'settings', label: '系统认证与短信配置' },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -383,6 +388,130 @@ export function AdminDashboardClient({
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* 5. 系统认证与第三方短信配置面板 */}
+      {activeTab === 'settings' && (
+        <div className="bg-white rounded-3xl p-6 md:p-8 border border-gray-150 shadow-xs space-y-6">
+          <div>
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-purple-700" />
+              系统登录与第三方短信网关配置
+            </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              集中管控前台是否强制开启手机短信验证码校验、账号密码登录权限及短信网关服务商。
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            {/* 开关 1: 短信验证码是否强制开启 */}
+            <div className="p-5 rounded-2xl border border-gray-150 bg-gray-50/50 flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-emerald-600" />
+                  <span className="text-sm font-bold text-gray-900">强制手机短信验证</span>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  开启后，用户在注册与短信登录时必须通过第三方短信验证码核验；关闭后可免验证码或直接输入任意号码。
+                </p>
+                <div className="text-[11px] font-semibold text-emerald-700 pt-1">
+                  当前状态：{config.sms_enabled ? '已开启强制校验' : '已关闭 (免短信模式)'}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  const target = !config.sms_enabled;
+                  const res = await updateSmsAuthConfigAction({ sms_enabled: target });
+                  if (res.success && res.config) {
+                    setConfig(res.config);
+                    setActionSuccess(`手机短信强制验证已成功${target ? '开启' : '关闭'}`);
+                    setTimeout(() => setActionSuccess(''), 3000);
+                  }
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 ${
+                  config.sms_enabled
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {config.sms_enabled ? '已启用 (点击关闭)' : '已停用 (点击开启)'}
+              </button>
+            </div>
+
+            {/* 开关 2: 密码登录是否开启 */}
+            <div className="p-5 rounded-2xl border border-gray-150 bg-gray-50/50 flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Key className="w-4 h-4 text-purple-600" />
+                  <span className="text-sm font-bold text-gray-900">允许账号密码登录</span>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  开启后前台登录页显示“密码登录”Tab，允许用户使用手机号/账号+密码直接完成鉴权认证。
+                </p>
+                <div className="text-[11px] font-semibold text-purple-700 pt-1">
+                  当前状态：{config.allow_password_login ? '支持账号密码登录' : '仅允许验证码登录'}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  const target = !config.allow_password_login;
+                  const res = await updateSmsAuthConfigAction({ allow_password_login: target });
+                  if (res.success && res.config) {
+                    setConfig(res.config);
+                    setActionSuccess(`账号密码登录已成功${target ? '开启' : '关闭'}`);
+                    setTimeout(() => setActionSuccess(''), 3000);
+                  }
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 ${
+                  config.allow_password_login
+                    ? 'bg-purple-900 text-white hover:bg-purple-800 shadow-xs'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {config.allow_password_login ? '已启用 (点击关闭)' : '已停用 (点击开启)'}
+              </button>
+            </div>
+          </div>
+
+          {/* 第三方短信服务商网关选择 */}
+          <div className="p-5 rounded-2xl border border-gray-150 bg-white space-y-3">
+            <label className="block text-xs font-bold text-gray-800">
+              接入的第三方短信服务提供商网关
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { key: 'aliyun', name: '阿里云短信 (Aliyun Dysmsapi)', desc: '支持模板与国内全网三网直连' },
+                { key: 'tencent', name: '腾讯云短信 (TencentCloud SMS)', desc: '高到达率国内及国际短信通道' },
+                { key: 'mock', name: '测试仿真网关 (Local Mock)', desc: '控制台打印与快速测试码 888888' },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={async () => {
+                    const res = await updateSmsAuthConfigAction({ sms_provider: item.key as typeof config.sms_provider });
+                    if (res.success && res.config) {
+                      setConfig(res.config);
+                      setActionSuccess(`短信网关服务商已切换为: ${item.name}`);
+                      setTimeout(() => setActionSuccess(''), 3000);
+                    }
+                  }}
+                  className={`p-3.5 rounded-xl border text-left transition ${
+                    config.sms_provider === item.key
+                      ? 'border-purple-900 bg-purple-50/50 shadow-xs'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-xs font-bold text-gray-900">{item.name}</div>
+                  <div className="text-[11px] text-gray-400 mt-1">{item.desc}</div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

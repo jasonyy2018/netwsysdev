@@ -2,6 +2,8 @@
 
 import { query } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
+import { getSystemAuthConfig, updateSystemAuthConfig } from '@/lib/utils/system-config';
+import { SystemAuthConfig } from '@/lib/schemas/auth';
 
 export interface AdminStats {
   userCount: number;
@@ -52,7 +54,9 @@ export async function getAdminDashboardData(): Promise<{
   users: AdminUserItem[];
   coaches: AdminCoachAuditItem[];
   orders: AdminOrderItem[];
+  systemConfig: SystemAuthConfig;
 }> {
+  const currentConfig = getSystemAuthConfig();
   try {
     const statsRes = await query(`
       SELECT 
@@ -125,6 +129,7 @@ export async function getAdminDashboardData(): Promise<{
         status: r.status,
         created_at: r.created_at,
       })),
+      systemConfig: currentConfig,
     };
   } catch (err) {
     console.error('getAdminDashboardData error:', err);
@@ -213,6 +218,7 @@ export async function getAdminDashboardData(): Promise<{
           created_at: '2026-03-13T10:30:00Z',
         },
       ],
+      systemConfig: currentConfig,
     };
   }
 }
@@ -254,3 +260,15 @@ export async function adjustUserCredit(userId: string, newScore: number, reason:
     return { success: true, mock: true };
   }
 }
+
+/**
+ * 管理员更新短信与认证安全配置
+ */
+export async function updateSmsAuthConfigAction(newConfig: Partial<SystemAuthConfig>) {
+  const updated = updateSystemAuthConfig(newConfig);
+  revalidatePath('/admin');
+  revalidatePath('/login');
+  revalidatePath('/register');
+  return { success: true, config: updated };
+}
+

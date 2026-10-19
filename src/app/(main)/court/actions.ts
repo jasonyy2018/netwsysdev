@@ -135,6 +135,16 @@ function generateVirtualSlots(venueId: string, dateStr: string): SlotItem[] {
  * c) 插入订单并记 mock 支付流水
  */
 export async function createCourtBooking(input: unknown) {
+  const { getCurrentUser } = await import('@/app/(auth)/actions');
+  const user = await getCurrentUser();
+  if (!user) {
+    return {
+      success: false,
+      code: 'UNAUTHORIZED',
+      error: '请先登录后再预订场地',
+    };
+  }
+
   const validated = CourtBookingSchema.parse(input);
   const client = await getClient().catch(() => null);
 
@@ -168,7 +178,7 @@ export async function createCourtBooking(input: unknown) {
          VALUES ($1, $2, $3::uuid[], $4, 'mock_paid', $5)
          RETURNING id`,
         [
-          DEFAULT_USER_ID,
+          user.id,
           validated.court_id,
           validated.slot_ids,
           validated.amount_cents,

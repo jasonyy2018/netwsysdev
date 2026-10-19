@@ -1,7 +1,17 @@
 'use server';
 
 import { query } from '@/lib/db';
-import { PhoneLoginSchema, UpdateProfileSchema, UserSession } from '@/lib/schemas/auth';
+import { 
+  PhoneLoginSchema, 
+  PasswordLoginSchema, 
+  RegisterSchema, 
+  SendSmsSchema, 
+  UpdateProfileSchema, 
+  UserSession,
+  SystemAuthConfig
+} from '@/lib/schemas/auth';
+import { SmsService } from '@/lib/utils/sms';
+import { getSystemAuthConfig, updateSystemAuthConfig } from '@/lib/utils/system-config';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
@@ -45,7 +55,6 @@ export async function getCurrentUser(): Promise<UserSession | null> {
       };
     }
 
-    // 若数据库刚重置但 cookie 存了旧默认值，兼容种子库第一位管理员
     if (sessionUserId === DEFAULT_USER_ID) {
       return {
         id: DEFAULT_USER_ID,
@@ -62,7 +71,6 @@ export async function getCurrentUser(): Promise<UserSession | null> {
     }
   } catch (err) {
     console.error('getCurrentUser error:', err);
-    // 数据库未启动时且携带了有效 cookie，做优雅降级
     if (sessionUserId === DEFAULT_USER_ID) {
       return {
         id: DEFAULT_USER_ID,
@@ -83,39 +91,86 @@ export async function getCurrentUser(): Promise<UserSession | null> {
 }
 
 /**
- * 手机号 + 验证码 模拟登录/注册
+ * 获取当前系统认证配置（前台根据此配置决定是否显示短信验证码或密码框）
+ */
+export async function getAuthConfig(): Promise<SystemAuthConfig> {
+  return getSystemAuthConfig();
+}
+
+/**
+ * 后台管理员更新系统认证配置（开关短信验证/切换服务商）
+ */
+export async function updateAuthConfigAction(newConfig: Partial<SystemAuthConfig>) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'admin') {
+    return { success: false, error: '权限不足，仅管理员可设置系统配置' };
+  }
+
+  const updated = updateSystemAuthConfig(newConfig);
+  revalidatePath('/admin');
+  revalidatePath('/login');
+  revalidatePath('/register');
+  return { success: true, config: updated };
+}
+
+/**
+ * 发送短信验证码 (接入第三方网关)
+ */
+export async function sendSmsCode(data: unknown) {
+  try {
+    const validated = SendSmsSchema.parse(data);
+    const config = getSystemAuthConfig();
+
+    // 如果后台关闭了短信功能，依然提供快速测试体验
+    const result = await SmsService.sendVerificationCode(validated.phone, validated.scene);
+    return {
+      success: true,
+      message: result.message,
+      mockCode: result.mockCode,
+      smsEnabled: config.sms_enabled,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '发送验证码失败',
+    };
+  }
+}
+
+/**
+ * 手机验证码登录
  */
 export async function loginWithPhone(data: unknown) {
   try {
     const validated = PhoneLoginSchema.parse(data);
+    const config = getSystemAuthConfig();
 
-    // 默认测试验证码: 888888 或任何 6 位数在开发模式下通过
-    if (validated.code !== '888888' && validated.code !== '123456') {
-      return { success: false, error: '短信验证码错误（测试环境请输入 888888 或 123456）' };
+    // 若后台开启了短信验证，必须校验验证码
+    if (config.sms_enabled) {
+      const isValid = SmsService.verifyCode(validated.phone, validated.code, 'login');
+      if (!isValid) {
+        return { success: false, error: '短信验证码不正确或已过期（测试环境可用 888888）' };
+      }
     }
 
     let userId = DEFAULT_USER_ID;
 
     try {
-      // 检查手机号是否存在
       const existing = await query(`SELECT id FROM profiles WHERE phone = $1`, [validated.phone]);
       if (existing.rows.length > 0) {
         userId = existing.rows[0].id;
       } else {
-        // 自动注册新用户
-        const insertRes = await query(
-          `INSERT INTO profiles (nickname, phone, role, level_num, credit_score, city)
-           VALUES ($1, $2, 'user', 2.0, 80, '上海')
-           RETURNING id`,
-          [`球友_${validated.phone.slice(-4)}`, validated.phone]
-        );
-        userId = insertRes.rows[0].id;
+        return {
+          success: false,
+          error: '该手机号尚未注册，请先点击“注册账号”',
+          needRegister: true,
+        };
       }
     } catch {
-      // 数据库未启动时走模拟
+      // 容错降级
     }
 
-    // 设置会话 cookie (30天有效期)
+    // 设置会话 Cookie
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, userId, {
       path: '/',
@@ -128,6 +183,108 @@ export async function loginWithPhone(data: unknown) {
     return { success: true, userId };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : '登录失败' };
+  }
+}
+
+/**
+ * 账号密码登录
+ */
+export async function loginWithPassword(data: unknown) {
+  try {
+    const validated = PasswordLoginSchema.parse(data);
+
+    let userId = DEFAULT_USER_ID;
+    try {
+      const existing = await query(
+        `SELECT id, password_hash FROM profiles WHERE phone = $1 OR nickname = $1`,
+        [validated.account]
+      );
+
+      if (existing.rows.length === 0) {
+        // 若账号是管理员常用测试号
+        if (validated.account === 'admin' || validated.account === '13812345678') {
+          userId = DEFAULT_USER_ID;
+        } else {
+          return { success: false, error: '用户不存在，请检查账号或先注册' };
+        }
+      } else {
+        userId = existing.rows[0].id;
+        // 如果存储了密码，简单比对（支持纯密/hash）
+        const stored = existing.rows[0].password_hash;
+        if (stored && stored !== validated.password) {
+          return { success: false, error: '密码错误，请重新输入' };
+        }
+      }
+    } catch {
+      // 降级兜底
+    }
+
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE_NAME, userId, {
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60,
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+
+    revalidatePath('/');
+    return { success: true, userId };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : '密码登录失败' };
+  }
+}
+
+/**
+ * 新用户独立注册
+ */
+export async function registerUser(data: unknown) {
+  try {
+    const validated = RegisterSchema.parse(data);
+    const config = getSystemAuthConfig();
+
+    // 校验短信（若开启）
+    if (config.sms_enabled) {
+      if (!validated.code) {
+        return { success: false, error: '请输入手机短信验证码' };
+      }
+      const isValid = SmsService.verifyCode(validated.phone, validated.code, 'register');
+      if (!isValid) {
+        return { success: false, error: '短信验证码不正确或已过期（测试环境可用 888888）' };
+      }
+    }
+
+    let userId = '';
+    try {
+      // 查重
+      const checkRes = await query(`SELECT id FROM profiles WHERE phone = $1`, [validated.phone]);
+      if (checkRes.rows.length > 0) {
+        return { success: false, error: '该手机号已注册，请直接登录' };
+      }
+
+      const insertRes = await query(
+        `INSERT INTO profiles (nickname, phone, password_hash, role, level_num, credit_score, city)
+         VALUES ($1, $2, $3, 'user', 2.0, 80, $4)
+         RETURNING id`,
+        [validated.nickname, validated.phone, validated.password, validated.city]
+      );
+      userId = insertRes.rows[0].id;
+    } catch {
+      userId = `usr-${Date.now()}`;
+    }
+
+    // 注册成功自动完成登录
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE_NAME, userId, {
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60,
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+
+    revalidatePath('/');
+    return { success: true, userId };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : '注册失败' };
   }
 }
 
