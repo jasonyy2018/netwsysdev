@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { VenueDetail, SlotItem } from '@/lib/schemas/court';
 import { getCourtSlots, createCourtBooking } from '@/app/(main)/court/actions';
-import { MapPin, Star, Calendar, ShieldAlert, CheckCircle2, Loader2, Sparkles, Navigation } from 'lucide-react';
+import { MapPin, Star, Calendar, ShieldAlert, CheckCircle2, Loader2, Sparkles, Navigation, Users, ArrowRight } from 'lucide-react';
 
 interface CourtBookingClientProps {
   venues: (VenueDetail & { distance_km: number })[];
@@ -25,6 +26,13 @@ export function CourtBookingClient({ venues }: CourtBookingClientProps) {
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState<string | null>(null);
+  const [lastBookingInfo, setLastBookingInfo] = useState<{
+    venueName: string;
+    venueId: string;
+    date: string;
+    startHour: number;
+    totalCents: number;
+  } | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   // 切换场馆或日期
@@ -70,6 +78,14 @@ export function CourtBookingClient({ venues }: CourtBookingClientProps) {
       });
 
       if (res.success) {
+        const firstHour = slots.find((s) => selectedSlotIds.includes(s.id))?.start_hour || 18;
+        setLastBookingInfo({
+          venueName: selectedVenue.name,
+          venueId: selectedVenue.id,
+          date: selectedDate,
+          startHour: firstHour,
+          totalCents: totalAmountCents,
+        });
         setBookingSuccess(res.bookingId || 'ORDER-SUCCESS');
       } else {
         setErrorMessage(res.error || '订场失败');
@@ -236,21 +252,53 @@ export function CourtBookingClient({ venues }: CourtBookingClientProps) {
             {/* 预订成功态 */}
             {bookingSuccess ? (
               <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-center">
-                <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
-                <h3 className="text-base font-bold text-emerald-900">场地预订成功！</h3>
+                <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-2" />
+                <h3 className="text-lg font-black text-emerald-950">场地预订成功！</h3>
                 <p className="text-xs text-emerald-700 mt-1">
-                  订单编号: {bookingSuccess} · 模拟支付已完成 · 对应时段已锁定
+                  订单编号: <span className="font-mono font-bold">{bookingSuccess}</span> · 模拟支付已完成 · 对应时段已锁定
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBookingSuccess(null);
-                    setSelectedSlotIds([]);
-                  }}
-                  className="mt-4 px-5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold"
-                >
-                  继续预订其他场地
-                </button>
+
+                {lastBookingInfo && (
+                  <div className="mt-4 p-4 rounded-xl bg-white border border-emerald-100 text-left text-xs space-y-1.5 shadow-xs">
+                    <div className="font-bold text-gray-900 flex items-center justify-between">
+                      <span>{lastBookingInfo.venueName}</span>
+                      <span className="text-emerald-700 font-black">¥{(lastBookingInfo.totalCents / 100).toFixed(0)}</span>
+                    </div>
+                    <div className="text-gray-500">
+                      预订日期：{lastBookingInfo.date} · 预计开球：{lastBookingInfo.startHour}:00
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-5 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  {lastBookingInfo && (
+                    <Link
+                      href={`/match/create?venue_id=${encodeURIComponent(lastBookingInfo.venueId)}&court_name=${encodeURIComponent(lastBookingInfo.venueName)}&date=${lastBookingInfo.date}&start_hour=${lastBookingInfo.startHour}&cost_cents=${lastBookingInfo.totalCents}`}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-2 transition"
+                    >
+                      <Users className="w-4 h-4" />
+                      一键基于此场地发起约球 (AA平摊)
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
+                  <Link
+                    href="/my/profile?tab=bookings"
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-bold transition"
+                  >
+                    查看我的预订记录
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBookingSuccess(null);
+                      setSelectedSlotIds([]);
+                      setLastBookingInfo(null);
+                    }}
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold transition"
+                  >
+                    继续预订其他场地
+                  </button>
+                </div>
               </div>
             ) : (
               /* 底部结算行动条 */

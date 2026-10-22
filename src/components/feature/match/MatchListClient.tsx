@@ -3,25 +3,38 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { MatchDetail } from '@/lib/schemas/match';
+import { UserSession } from '@/lib/schemas/auth';
 import { joinMatchRequest } from '@/app/(main)/match/actions';
-import { Users, MapPin, Calendar, PlusCircle, CheckCircle, Award, Sparkles, Filter } from 'lucide-react';
+import { Users, MapPin, Calendar, PlusCircle, CheckCircle, Award, Sparkles, Filter, Check } from 'lucide-react';
 
 interface MatchListClientProps {
   initialMatches: MatchDetail[];
+  user: UserSession | null;
 }
 
-export function MatchListClient({ initialMatches }: MatchListClientProps) {
+export function MatchListClient({ initialMatches, user }: MatchListClientProps) {
   const [matches, setMatches] = useState<MatchDetail[]>(initialMatches);
   const [filterType, setFilterType] = useState<string>('all');
+  const [onlyFitMyLevel, setOnlyFitMyLevel] = useState<boolean>(false);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [joinedSuccess, setJoinedSuccess] = useState<Record<string, boolean>>({});
 
   const filtered = matches.filter((m) => {
-    if (filterType === 'all') return true;
-    return m.match_type === filterType;
+    if (filterType !== 'all' && m.match_type !== filterType) return false;
+    if (onlyFitMyLevel && user) {
+      if (user.level_num < m.level_min || user.level_num > m.level_max) {
+        return false;
+      }
+    }
+    return true;
   });
 
   const handleJoin = async (matchId: string) => {
+    if (!user) {
+      window.location.href = '/login';
+      return;
+    }
+
     setJoiningId(matchId);
     try {
       const res = await joinMatchRequest(matchId);
@@ -45,7 +58,7 @@ export function MatchListClient({ initialMatches }: MatchListClientProps) {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* 顶部标题与发布行动 */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
             同城智能约球
@@ -64,6 +77,59 @@ export function MatchListClient({ initialMatches }: MatchListClientProps) {
           发起约球需求
         </Link>
       </div>
+
+      {/* 用户段位与智能匹配状态横幅 */}
+      {user ? (
+        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-white border border-emerald-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-black text-sm flex items-center justify-center shrink-0">
+              T{user.level_num.toFixed(1)}
+            </span>
+            <div>
+              <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                <span>{user.nickname}，系统已启动基于您段位的智能匹配</span>
+              </div>
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                为您高亮标出符合您水平区间（T{(user.level_num - 0.5).toFixed(1)} ~ T{(user.level_num + 0.5).toFixed(1)}）的优质球局
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setOnlyFitMyLevel(!onlyFitMyLevel)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                onlyFitMyLevel
+                  ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-400'
+              }`}
+            >
+              <Check className={`w-3.5 h-3.5 ${onlyFitMyLevel ? 'opacity-100' : 'opacity-0'}`} />
+              只看契合我水平 (T{user.level_num.toFixed(1)})
+            </button>
+            <Link
+              href="/assessment/self"
+              className="text-xs text-gray-500 hover:text-emerald-700 px-2.5 py-1.5 rounded-xl font-medium"
+            >
+              重测水平
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="text-xs text-amber-900">
+            <span className="font-bold">尚未完成水平测评？</span> 
+            仅需 2 分钟问卷，即可测定 T1-T10 段位并体验智能对局匹配。
+          </div>
+          <Link
+            href="/assessment/self"
+            className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold text-center shrink-0"
+          >
+            去自评定级
+          </Link>
+        </div>
+      )}
 
       {/* 快捷筛选器 */}
       <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
@@ -92,10 +158,12 @@ export function MatchListClient({ initialMatches }: MatchListClientProps) {
       {/* 约球卡片流 */}
       <div className="space-y-4">
         {filtered.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
+          <div className="text-center py-16 bg-white rounded-2xl border border-gray-150">
             <Users className="w-10 h-10 text-gray-300 mx-auto mb-2" />
             <h3 className="text-sm font-bold text-gray-800">当前筛选暂无约球需求</h3>
-            <p className="text-xs text-gray-400 mt-1">成为第一个发起同城球局的人吧！</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {onlyFitMyLevel ? '尝试取消“只看契合我水平”筛选，或自己发起一个球局吧！' : '成为第一个发起同城球局的人吧！'}
+            </p>
           </div>
         ) : (
           filtered.map((match) => {
@@ -106,10 +174,18 @@ export function MatchListClient({ initialMatches }: MatchListClientProps) {
               startDate.getHours()
             ).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
 
+            // 是否契合当前用户段位
+            const isLevelFit =
+              user &&
+              user.level_num >= match.level_min &&
+              user.level_num <= match.level_max;
+
             return (
               <div
                 key={match.id}
-                className="bg-white rounded-2xl p-5 border border-gray-100 hover:border-emerald-300 transition-all shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4"
+                className={`bg-white rounded-2xl p-5 border transition-all shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                  isLevelFit ? 'border-emerald-300 ring-1 ring-emerald-100' : 'border-gray-150 hover:border-gray-300'
+                }`}
               >
                 {/* 左侧发起人与球局核心信息 */}
                 <div className="space-y-2.5 flex-1">
@@ -120,7 +196,7 @@ export function MatchListClient({ initialMatches }: MatchListClientProps) {
                       className="w-10 h-10 rounded-full object-cover border border-gray-100"
                     />
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-bold text-gray-900">
                           {match.creator_nickname}
                         </span>
@@ -131,8 +207,14 @@ export function MatchListClient({ initialMatches }: MatchListClientProps) {
                         <span className="text-[11px] text-gray-400 font-medium">
                           信用 {match.creator_credit}分
                         </span>
+                        {isLevelFit && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-emerald-600" />
+                            契合您的 T{user.level_num.toFixed(1)}
+                          </span>
+                        )}
                       </div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-gray-400 mt-0.5">
                         招募等级区间：
                         <span className="font-bold text-emerald-700 ml-1">
                           T{match.level_min.toFixed(1)} - T{match.level_max.toFixed(1)}

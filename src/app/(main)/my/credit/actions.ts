@@ -10,6 +10,12 @@ const DEFAULT_USER_ID = '11111111-1111-1111-1111-111111111111';
  * 1. 提交约球/教练互评，处理信用分惩罚或加分
  */
 export async function submitReview(input: unknown) {
+  const { getCurrentUser } = await import('@/app/(auth)/actions');
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: '请先登录后再提交评价' };
+  }
+
   const validated = SubmitReviewSchema.parse(input);
   const client = await getClient().catch(() => null);
 
@@ -22,7 +28,7 @@ export async function submitReview(input: unknown) {
         `INSERT INTO reviews (reviewer_id, target_type, target_id, rating, tags, comment)
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [
-          DEFAULT_USER_ID,
+          user.id,
           validated.target_type,
           validated.target_id,
           validated.rating,
@@ -83,10 +89,14 @@ export async function submitReview(input: unknown) {
 /**
  * 2. 获取用户信用档案与流水日志
  */
-export async function getUserCreditProfile(userId = DEFAULT_USER_ID): Promise<{
+export async function getUserCreditProfile(providedUserId?: string): Promise<{
   profile: UserCreditProfile;
   events: CreditEventItem[];
 }> {
+  const { getCurrentUser } = await import('@/app/(auth)/actions');
+  const currentUser = await getCurrentUser();
+  const userId = providedUserId || currentUser?.id || DEFAULT_USER_ID;
+
   try {
     const profileRes = await query(
       `SELECT id, nickname, avatar_url, level_num, credit_score 
