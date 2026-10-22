@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { loginWithPhone, loginWithPassword, sendSmsCode } from '../actions';
-import { Phone, Lock, ShieldCheck, Loader2, ArrowRight, Sparkles } from 'lucide-react';
+import { Phone, Lock, ShieldCheck, Loader2, ArrowRight, Sparkles, Info } from 'lucide-react';
 import Link from 'next/link';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTarget = searchParams.get('redirect') || '/';
+
   const [loginMode, setLoginMode] = useState<'phone' | 'password'>('password');
   
   // 密码登录
@@ -64,7 +67,7 @@ export default function LoginPage() {
     try {
       const res = await loginWithPassword({ account, password });
       if (res.success) {
-        router.push('/');
+        router.push(redirectTarget);
         router.refresh();
       } else {
         setErrorMsg(res.error || '登录失败');
@@ -84,7 +87,7 @@ export default function LoginPage() {
     try {
       const res = await loginWithPhone({ phone, code });
       if (res.success) {
-        router.push('/');
+        router.push(redirectTarget);
         router.refresh();
       } else {
         setErrorMsg(res.error || '登录失败');
@@ -109,6 +112,14 @@ export default function LoginPage() {
             登录后即可发起约球、参与球局、在线抢场与预约私教
           </p>
         </div>
+
+        {/* 登录重定向提示 */}
+        {redirectTarget !== '/' && (
+          <div className="mb-5 p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-800 text-xs flex items-center gap-2">
+            <Info className="w-4 h-4 text-blue-600 shrink-0" />
+            <span>您访问的功能需要先登录账号，登录后将自动返回继续操作。</span>
+          </div>
+        )}
 
         {/* 登录方式切换 Tab */}
         <div className="flex border-b border-gray-150 mb-6">
@@ -168,8 +179,8 @@ export default function LoginPage() {
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold text-gray-700">登录密码</label>
-                <span className="text-[11px] text-gray-400">默认测试密码: 123456</span>
+                <label className="text-xs font-bold text-gray-700">登录密码</label>
+                <span className="text-[11px] text-gray-400">默认密码：123456</span>
               </div>
               <div className="relative">
                 <input
@@ -198,26 +209,25 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  验证中...
+                  验证登录中...
                 </>
               ) : (
                 <>
-                  立即登录
+                  登录系统
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
         ) : (
-          /* 方式2: 手机验证码登录 */
+          /* 方式2: 手机短信验证码登录 */
           <form onSubmit={handlePhoneSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5">手机号码</label>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5">手机号</label>
               <div className="relative">
                 <input
                   type="tel"
-                  maxLength={11}
-                  placeholder="请输入手机号"
+                  placeholder="请输入11位中国大陆手机号"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 focus:outline-none"
@@ -287,7 +297,7 @@ export default function LoginPage() {
         <div className="mt-6 pt-6 border-t border-gray-150 flex items-center justify-between text-xs">
           <span className="text-gray-500">还没有 TennisHub 账号？</span>
           <Link
-            href="/register"
+            href={`/register${redirectTarget !== '/' ? `?redirect=${encodeURIComponent(redirectTarget)}` : ''}`}
             className="font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
           >
             免费注册账号 <Sparkles className="w-3.5 h-3.5" />
@@ -295,5 +305,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[80vh] flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-emerald-600" /></div>}>
+      <LoginContent />
+    </Suspense>
   );
 }

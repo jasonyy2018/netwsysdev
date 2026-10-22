@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { CoachCard } from '@/lib/schemas/coach';
+import { UserSession } from '@/lib/schemas/auth';
 import { createCoachOrder } from '@/app/(main)/coach/actions';
-import { Star, ShieldCheck, Clock, Award, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { Star, ShieldCheck, Clock, Award, CheckCircle2, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 
 interface CoachClientProps {
   coaches: CoachCard[];
+  user: UserSession | null;
 }
 
-export function CoachClient({ coaches }: CoachClientProps) {
+export function CoachClient({ coaches, user }: CoachClientProps) {
   const [selectedCoach, setSelectedCoach] = useState<CoachCard | null>(null);
   const [hours, setHours] = useState(1);
   const [startTime, setStartTime] = useState('');
@@ -70,13 +72,29 @@ export function CoachClient({ coaches }: CoachClientProps) {
         </div>
 
         <Link
-          href="/coach/apply"
+          href={user ? '/coach/apply' : '/login?redirect=/coach/apply'}
           className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-900 hover:bg-purple-800 text-white text-xs font-bold shadow-xs transition shrink-0"
         >
           <Award className="w-4 h-4 text-amber-300" />
           教练入驻申请
         </Link>
       </div>
+
+      {/* 游客态提示 */}
+      {!user && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div>
+            <span className="font-bold">💡 游客浏览模式：</span> 
+            您可以公开查阅教练等级认证、执教年限与特长。如需预约一对一私教课程或申请教练入驻，请先登录球友账号。
+          </div>
+          <Link
+            href="/login?redirect=/coach"
+            className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold text-center shrink-0"
+          >
+            去登录
+          </Link>
+        </div>
+      )}
 
       {/* 教练卡片流 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -133,13 +151,22 @@ export function CoachClient({ coaches }: CoachClientProps) {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => handleBook(coach)}
-              className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
-            >
-              预约私教课程
-            </button>
+            {!user ? (
+              <Link
+                href="/login?redirect=/coach"
+                className="w-full py-2.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-xs font-bold transition text-center block"
+              >
+                登录后预约私教课程
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleBook(coach)}
+                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
+              >
+                预约私教课程
+              </button>
+            )}
           </div>
         ))}
       </div>

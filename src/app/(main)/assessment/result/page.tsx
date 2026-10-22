@@ -1,16 +1,20 @@
 import React from 'react';
 import Link from 'next/link';
 import { getLatestAssessment } from '../actions';
+import { getCurrentUser } from '@/app/(auth)/actions';
 import { HexagonRadar } from '@/components/feature/assessment/HexagonRadar';
-import { Award, CheckCircle, Video, Users, UserCheck, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Award, CheckCircle, Video, Users, UserCheck, ShieldCheck, ArrowRight, AlertTriangle } from 'lucide-react';
 
 export default async function AssessmentResultPage() {
-  const assessment = await getLatestAssessment();
+  const [assessment, user] = await Promise.all([
+    getLatestAssessment(),
+    getCurrentUser(),
+  ]);
 
   // 若无数据，展示默认兜底评估状态
   const data = assessment || {
     selfScore: 3.5,
-    finalLevel: 3.5,
+    finalLevel: user?.level_num || 3.5,
     confidence: 0.88,
     radar: {
       forehand: 6.8,
@@ -42,6 +46,37 @@ export default async function AssessmentResultPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
+      {/* 游客态 vs 登录态 档案绑定提示栏 */}
+      {!user ? (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200/90 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="text-xs space-y-0.5">
+            <div className="font-bold flex items-center gap-1.5 text-amber-900">
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+              <span>游客预览模式：测评结果尚未绑定到球友账号</span>
+            </div>
+            <p className="text-amber-700">
+              立即登录或注册，即可永久保存您的 <strong>T{data.finalLevel.toFixed(1)}</strong> 段位档案与技术雷达图，并开启智能约球匹配！
+            </p>
+          </div>
+          <Link
+            href="/login?redirect=/assessment/result"
+            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shrink-0 text-center shadow-xs"
+          >
+            登录并绑定档案
+          </Link>
+        </div>
+      ) : (
+        <div className="mb-6 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-600" />
+            <span>评级已成功同步至球友档案：<strong>{user.nickname}</strong>（当前评级 T{user.level_num.toFixed(1)}）</span>
+          </div>
+          <Link href="/my/profile" className="font-bold text-emerald-800 hover:underline">
+            查看个人空间 →
+          </Link>
+        </div>
+      )}
+
       {/* 顶部荣誉卡片 */}
       <div className="bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-900 rounded-3xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden mb-8">
         <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-white/10 blur-2xl pointer-events-none" />
@@ -58,52 +93,52 @@ export default async function AssessmentResultPage() {
             </h1>
             <p className="text-emerald-100/90 text-sm mt-2 max-w-md">
               根据您的问卷自评与动作习惯综合计算，对应国际网联标准 {badgeInfo.tag}。置信度：
-              <span className="font-bold text-white ml-1">{(data.confidence * 100).toFixed(0)}%</span>
+              <span className="font-bold text-emerald-200 ml-1">
+                {(data.confidence * 100).toFixed(0)}%
+              </span>
             </p>
           </div>
 
-          <div className="shrink-0 flex md:flex-col items-center justify-center p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
+          <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shrink-0 min-w-[130px]">
             <Award className="w-10 h-10 text-amber-300 mb-1" />
-            <div className="text-center">
-              <div className="text-xs text-emerald-200">综合段位</div>
-              <div className="text-2xl font-black tracking-wider text-amber-300">
-                T{Math.floor(data.finalLevel)}
-              </div>
-            </div>
+            <div className="text-xs font-medium text-emerald-200">段位认证状态</div>
+            <div className="text-sm font-extrabold text-white mt-0.5">自评定级已确认</div>
           </div>
         </div>
       </div>
 
-      {/* 六维雷达图与能力解析 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {/* 雷达图展示卡片 */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
-          <div className="w-full flex items-center justify-between mb-2">
-            <h2 className="text-base font-bold text-gray-900">网球六维技术雷达</h2>
-            <span className="text-xs text-gray-400">满分 10.0</span>
-          </div>
-          <HexagonRadar data={data.radar} size={280} />
-          <div className="text-xs text-gray-400 mt-2">
-            💡 数据基于正手、发球、网前、反手、步法、稳定性综合测算
+      {/* 六维雷达图与诊断报告 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <div className="bg-white rounded-3xl p-6 border border-gray-150 shadow-xs flex flex-col items-center justify-center">
+          <h2 className="text-sm font-bold text-gray-900 mb-4 self-start">
+            技术六维能力雷达图
+          </h2>
+          <HexagonRadar data={data.radar} size={300} />
+          <div className="mt-4 flex flex-wrap justify-center gap-3 text-[11px] text-gray-500 font-medium">
+            <span>正手 {data.radar.forehand}</span>·
+            <span>反手 {data.radar.backhand}</span>·
+            <span>发球 {data.radar.serve}</span>·
+            <span>截击 {data.radar.volley}</span>·
+            <span>步伐 {data.radar.footwork}</span>·
+            <span>稳定性 {data.radar.consistency}</span>
           </div>
         </div>
 
-        {/* 关键提升建议 */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between">
+        <div className="bg-white rounded-3xl p-6 border border-gray-150 shadow-xs flex flex-col justify-between">
           <div>
-            <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-emerald-600" />
-              针对性提升突破点 (Top 3)
+            <h2 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              AI 专家诊断与优先提升建议
             </h2>
             <div className="space-y-3">
-              {data.topImprovements.map((item: string, idx: number) => (
-                <div key={idx} className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+              {(data.topImprovements as string[]).map((tip: string, idx: number) => (
+                <div key={idx} className="p-3.5 rounded-2xl bg-gray-50 border border-gray-100 flex gap-3">
+                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
                     {idx + 1}
-                  </div>
-                  <div className="text-xs md:text-sm text-gray-700 leading-relaxed font-medium">
-                    {item}
-                  </div>
+                  </span>
+                  <p className="text-xs text-gray-700 leading-relaxed font-medium">
+                    {tip}
+                  </p>
                 </div>
               ))}
             </div>
@@ -111,11 +146,11 @@ export default async function AssessmentResultPage() {
 
           <div className="mt-6 pt-4 border-t border-gray-100">
             <Link
-              href="/assessment/video"
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition border border-amber-200"
+              href={user ? "/assessment/video" : "/login?redirect=/assessment/video"}
+              className="w-full py-3 rounded-xl bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200 text-xs font-bold transition flex items-center justify-center gap-2"
             >
-              <Video className="w-4 h-4 text-amber-700" />
-              上传 10秒 动作视频，解锁 AI 抽帧多模态精准评级
+              <Video className="w-4 h-4 text-purple-600" />
+              上传技术视频，开启 AI 抽帧精准复核
             </Link>
           </div>
         </div>

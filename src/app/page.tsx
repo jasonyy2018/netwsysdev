@@ -1,14 +1,65 @@
 import Link from "next/link";
-import { Activity, Users, MapPin, UserCheck, ShieldCheck, ArrowRight, Sparkles } from "lucide-react";
+import { getCurrentUser } from "@/app/(auth)/actions";
+import { Activity, Users, MapPin, UserCheck, ShieldCheck, ArrowRight, Sparkles, Award, Shield, User } from "lucide-react";
 
-export default function Home() {
+export default async function Home() {
+  const user = await getCurrentUser();
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-12 md:py-16">
+      {/* 登录用户专属问候横幅 */}
+      {user && (
+        <div className="mb-10 p-5 rounded-3xl bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <img
+              src={user.avatar_url}
+              alt={user.nickname}
+              className="w-14 h-14 rounded-2xl object-cover border-2 border-white/20 shadow-sm"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-black">{user.nickname}，欢迎回来！</h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-amber-950 flex items-center gap-0.5">
+                  <Award className="w-3 h-3 text-amber-900" />
+                  T{user.level_num.toFixed(1)}
+                </span>
+              </div>
+              <p className="text-xs text-emerald-100 mt-1 flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <Shield className="w-3 h-3 text-emerald-300" /> 信用分: <strong>{user.credit_score}</strong>
+                </span>
+                <span>·</span>
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-emerald-300" /> {user.city}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Link
+              href="/my/profile"
+              className="px-4 py-2 rounded-xl bg-white text-emerald-800 text-xs font-bold hover:bg-emerald-50 transition shadow-xs flex items-center gap-1"
+            >
+              <User className="w-3.5 h-3.5" />
+              球友空间
+            </Link>
+            <Link
+              href="/match"
+              className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold transition shadow-xs flex items-center gap-1"
+            >
+              <Users className="w-3.5 h-3.5" />
+              契合我的球局
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <div className="text-center max-w-2xl mx-auto mb-16">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold mb-4">
           <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-          网球运动生态平台 · Vibe Coding 第一阶段 MVP
+          网球运动生态平台 · 权威评级与同城约战
         </div>
         <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">
           测出真正等级，<br />

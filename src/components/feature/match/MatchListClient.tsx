@@ -263,6 +263,13 @@ export function MatchListClient({ initialMatches, user }: MatchListClientProps) 
                     <span className="px-4 py-2 rounded-xl bg-gray-100 text-gray-400 text-xs font-semibold">
                       已满员
                     </span>
+                  ) : !user ? (
+                    <Link
+                      href="/login?redirect=/match"
+                      className="px-5 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition"
+                    >
+                      登录后报名
+                    </Link>
                   ) : (
                     <button
                       type="button"

@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { VenueDetail, SlotItem } from '@/lib/schemas/court';
+import { UserSession } from '@/lib/schemas/auth';
 import { getCourtSlots, createCourtBooking } from '@/app/(main)/court/actions';
 import { MapPin, Star, Calendar, ShieldAlert, CheckCircle2, Loader2, Sparkles, Navigation, Users, ArrowRight } from 'lucide-react';
 
 interface CourtBookingClientProps {
   venues: (VenueDetail & { distance_km: number })[];
+  user: UserSession | null;
 }
 
-export function CourtBookingClient({ venues }: CourtBookingClientProps) {
+export function CourtBookingClient({ venues, user }: CourtBookingClientProps) {
   const [selectedVenue, setSelectedVenue] = useState<VenueDetail & { distance_km: number }>(venues[0]);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [slots, setSlots] = useState<SlotItem[]>([
@@ -190,6 +192,16 @@ export function CourtBookingClient({ venues }: CourtBookingClientProps) {
               </div>
             </div>
 
+            {/* 游客态提示 */}
+            {!user && (
+              <div className="mb-4 p-3 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs flex items-center justify-between gap-2">
+                <span>您当前处于<strong>游客浏览模式</strong>，选择时段后请登录球友账号进行时段锁定与模拟支付。</span>
+                <Link href="/login?redirect=/court" className="font-bold text-amber-950 underline shrink-0">
+                  去登录
+                </Link>
+              </div>
+            )}
+
             {/* 时段状态图例 */}
             <div className="flex items-center gap-4 text-xs font-medium text-gray-500 mb-4">
               <div className="flex items-center gap-1.5">
@@ -312,21 +324,31 @@ export function CourtBookingClient({ venues }: CourtBookingClientProps) {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  disabled={selectedSlotIds.length === 0 || isSubmitting}
-                  onClick={handleConfirmBooking}
-                  className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      锁定并支付中...
-                    </>
-                  ) : (
-                    '立即预订 (模拟支付)'
-                  )}
-                </button>
+                {!user ? (
+                  <Link
+                    href="/login?redirect=/court"
+                    className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5"
+                  >
+                    登录以锁定预订
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={selectedSlotIds.length === 0 || isSubmitting}
+                    onClick={handleConfirmBooking}
+                    className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        锁定并支付中...
+                      </>
+                    ) : (
+                      '立即预订 (模拟支付)'
+                    )}
+                  </button>
+                )}
               </div>
             )}
           </div>

@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { registerUser, sendSmsCode } from '../actions';
-import { Phone, Lock, User, MapPin, ShieldCheck, Loader2, ArrowRight, Sparkles } from 'lucide-react';
+import { Phone, Lock, User, MapPin, ShieldCheck, Loader2, ArrowRight, Sparkles, Info } from 'lucide-react';
 import Link from 'next/link';
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTarget = searchParams.get('redirect') || '/';
+
   const [formData, setFormData] = useState({
     phone: '',
     password: '',
@@ -79,7 +82,7 @@ export default function RegisterPage() {
       });
 
       if (res.success) {
-        router.push('/');
+        router.push(redirectTarget);
         router.refresh();
       } else {
         setErrorMsg(res.error || '注册失败');
@@ -99,14 +102,19 @@ export default function RegisterPage() {
           <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white font-black text-2xl flex items-center justify-center mx-auto mb-3 shadow-sm">
             🎾
           </div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center justify-center gap-2">
-            新球友注册
-            <Sparkles className="w-5 h-5 text-amber-500" />
-          </h1>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">注册球友新账号</h1>
           <p className="text-xs text-gray-500 mt-1">
-            加入 TennisHub 社区，开启网球等级测评与智能约球
+            加入 TennisHub，开启网球等级测评、同城约球与专属订场
           </p>
         </div>
+
+        {/* 注册回跳提示 */}
+        {redirectTarget !== '/' && (
+          <div className="mb-5 p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-800 text-xs flex items-center gap-2">
+            <Info className="w-4 h-4 text-blue-600 shrink-0" />
+            <span>注册完成后将自动返回您刚才浏览的页面。</span>
+          </div>
+        )}
 
         {tipMsg && (
           <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
@@ -116,50 +124,17 @@ export default function RegisterPage() {
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5">球友昵称</label>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">手机号码</label>
             <div className="relative">
               <input
-                type="text"
-                placeholder="例: 网球少年、小威正手"
-                value={formData.nickname}
-                onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                type="tel"
+                placeholder="请输入11位中国大陆手机号"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 focus:outline-none"
                 required
               />
-              <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5">常住城市</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="如: 上海、北京"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 focus:outline-none"
-                  required
-                />
-                <MapPin className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5">手机号码</label>
-              <div className="relative">
-                <input
-                  type="tel"
-                  maxLength={11}
-                  placeholder="11位手机号"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 focus:outline-none"
-                  required
-                />
-                <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-              </div>
+              <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
             </div>
           </div>
 
@@ -170,7 +145,7 @@ export default function RegisterPage() {
                 <input
                   type="text"
                   maxLength={6}
-                  placeholder="6位短信码"
+                  placeholder="6位验证码"
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 focus:outline-none tracking-widest font-mono"
@@ -188,40 +163,66 @@ export default function RegisterPage() {
                 {sending ? '发送中...' : countdown > 0 ? `${countdown}s 后重发` : '获取验证码'}
               </button>
             </div>
-            <div className="text-[11px] text-gray-400 mt-1">
-              测试验证码：<span className="font-bold text-emerald-600">888888</span>
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5">设置登录密码</label>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5">球友昵称</label>
               <div className="relative">
                 <input
-                  type="password"
-                  placeholder="至少6位密码"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  type="text"
+                  placeholder="例：罗杰球友"
+                  value={formData.nickname}
+                  onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 focus:outline-none"
                   required
                 />
-                <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                <User className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5">确认密码</label>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5">常住城市</label>
               <div className="relative">
                 <input
-                  type="password"
-                  placeholder="再次确认"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  type="text"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 focus:outline-none"
                   required
                 />
-                <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                <MapPin className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
               </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">设置登录密码</label>
+            <div className="relative">
+              <input
+                type="password"
+                placeholder="不少于 6 位密码"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 focus:outline-none"
+                required
+              />
+              <Lock className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">确认登录密码</label>
+            <div className="relative">
+              <input
+                type="password"
+                placeholder="再次输入密码"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-emerald-500 focus:outline-none"
+                required
+              />
+              <Lock className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
             </div>
           </div>
 
@@ -239,27 +240,36 @@ export default function RegisterPage() {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                正在注册账号...
+                正在创建账号...
               </>
             ) : (
               <>
-                确认注册并登录
+                立即注册并登录
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>
         </form>
 
+        {/* 底部跳转登录 */}
         <div className="mt-6 pt-6 border-t border-gray-150 flex items-center justify-between text-xs">
-          <span className="text-gray-500">已有账号？</span>
+          <span className="text-gray-500">已有 TennisHub 账号？</span>
           <Link
-            href="/login"
-            className="font-bold text-emerald-600 hover:text-emerald-700"
+            href={`/login${redirectTarget !== '/' ? `?redirect=${encodeURIComponent(redirectTarget)}` : ''}`}
+            className="font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
           >
-            直接登录 →
+            去登录账号 <Sparkles className="w-3.5 h-3.5" />
           </Link>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[85vh] flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-emerald-600" /></div>}>
+      <RegisterContent />
+    </Suspense>
   );
 }
