@@ -2,12 +2,11 @@ FROM node:22-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies based on package-lock.json
+# Install dependencies based on package-lock.json using npmmirror for fast and reliable download
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --registry=https://registry.npmmirror.com
 
 # Rebuild the source code only when needed
 FROM base AS builder
